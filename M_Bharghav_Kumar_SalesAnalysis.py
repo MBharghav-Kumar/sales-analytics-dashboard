@@ -29,9 +29,7 @@ def clean_numeric(series):
 # Public Google Sheet from the supplied notebook. The sheet must remain
 # shared as "Anyone with the link can view" for the default data source to work.
 DEFAULT_SHEET_CSV_URL = (
-    "https://docs.google.com/spreadsheets/d/"
-    "1iupjNMUEe_cHJdOhwBc-FkzDhvK09dHOm9cBtxi76-E/export"
-    "?format=csv&gid=291095474"
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQnWpf78KzvpvQqIHbzXLaWq72LcbksGXqqzgiovWjB0vvf-uDmev2VsoBDZv0GYpDHmZZIEaMG_S0h/pub?gid=835474096&single=true&output=csv"
 )
 
 @st.cache_data(ttl=300, show_spinner=False)
