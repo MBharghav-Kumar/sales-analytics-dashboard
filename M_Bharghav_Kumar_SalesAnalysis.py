@@ -26,8 +26,22 @@ def clean_numeric(series):
     cleaned = cleaned.replace({"": np.nan, "nan": np.nan, "None": np.nan, "—": np.nan, "-": np.nan})
     return pd.to_numeric(cleaned, errors="coerce")
 
+# Public Google Sheet from the supplied notebook. The sheet must remain
+# shared as "Anyone with the link can view" for the default data source to work.
+DEFAULT_SHEET_CSV_URL = (
+    "https://docs.google.com/spreadsheets/d/"
+    "1iupjNMUEe_cHJdOhwBc-FkzDhvK09dHOm9cBtxi76-E/export"
+    "?format=csv&gid=291095474"
+)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_default_sheet():
+    return pd.read_csv(DEFAULT_SHEET_CSV_URL)
+
 @st.cache_data(show_spinner=False)
-def load_csv(file_bytes):
+def load_uploaded_file(file_bytes, file_name):
+    if file_name.lower().endswith((".xlsx", ".xls")):
+        return pd.read_excel(io.BytesIO(file_bytes))
     return pd.read_csv(io.BytesIO(file_bytes))
 
 def prepare_data(raw):
@@ -102,12 +116,12 @@ def aggregate(df, group, extra=None):
     return out
 
 st.title("📊 Sales Analytics Dashboard")
-st.caption("Interactive Streamlit app adapted from the supplied sales-analysis notebook. Upload your CSV to explore revenue, calculated profitability, trends, products, regions, customers, discounts, and channels.")
+st.caption("Interactive sales dashboard. It loads your shared Google Sheet by default; upload another Excel or CSV file whenever you want to analyse a different dataset.")
 
 with st.sidebar:
     st.header("Data")
-    uploaded = st.file_uploader("Upload sales CSV", type=["csv"])
-    st.caption("Required columns are listed in README.md. Column names are normalized automatically.")
+    uploaded = st.file_uploader("Optional: upload a replacement file", type=["xlsx", "xls", "csv"])
+    st.caption("By default, the dashboard loads your shared Google Sheet. Upload an Excel or CSV file to use different data instead.")
     page = st.radio(
         "Explore",
         ["Overview", "Product Analysis", "Regional & Sales Rep", "Time Trends",
@@ -116,16 +130,21 @@ with st.sidebar:
     )
 
 if uploaded is None:
-    st.info("Upload your sales CSV to begin. The app does not include the original dataset because the supplied notebook reads data from a private Google Sheet.")
-    st.markdown("### What this app includes")
-    st.markdown("- KPI summary and revenue/profit trends\n- Product and category ranking\n- Region and sales-representative performance\n- Monthly, quarterly, weekday/weekend analysis\n- Customer segments, discount impact, payment and sales-channel analysis\n- Correlation heatmap, data-quality checks, CSV exports")
-    st.stop()
-
-try:
-    raw = load_csv(uploaded.getvalue())
-except Exception as exc:
-    st.error(f"Could not read this CSV file: {exc}")
-    st.stop()
+    try:
+        with st.spinner("Loading the default sales dataset from Google Sheets..."):
+            raw = load_default_sheet()
+        st.sidebar.success("Using default Google Sheets data")
+    except Exception as exc:
+        st.error("The default Google Sheet could not be loaded. Check that the sheet is shared as 'Anyone with the link can view', or upload an Excel/CSV file in the sidebar.")
+        st.caption(f"Technical detail: {exc}")
+        st.stop()
+else:
+    try:
+        raw = load_uploaded_file(uploaded.getvalue(), uploaded.name)
+        st.sidebar.success(f"Using uploaded file: {uploaded.name}")
+    except Exception as exc:
+        st.error(f"Could not read the uploaded file: {exc}")
+        st.stop()
 
 df, missing = prepare_data(raw)
 if missing:
